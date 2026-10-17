@@ -2705,12 +2705,23 @@ document.documentElement.lang = 'ru';
     '.switch button[data-side="nsfw"][aria-selected="true"] .dot{background:#d8524a;opacity:1;box-shadow:0 0 10px #d8524a}' +
     '.fl-archive{position:fixed;inset:0;width:100%;height:100%;border:0;z-index:2147483000;background:#0a0505;opacity:0;pointer-events:none;transition:opacity .6s ease}' +
     '.fl-archive.in{opacity:1}.fl-archive.out{transition-duration:.5s}' +
-    /* пока архив собирается за темнотой: тлеющий огонёк; анимация только transform/opacity, она не зависит от загрузки */
-    '.fl-wait{position:fixed;left:50%;top:56%;z-index:6;transform:translate(-50%,-50%);display:flex;flex-direction:column;align-items:center;gap:16px;pointer-events:none;opacity:0;transition:opacity .5s}' +
-    '.fl-wait.on{opacity:1}.fl-wait i{width:10px;height:10px;border-radius:50%;background:#ffb070;box-shadow:0 0 18px 6px rgba(255,140,60,.55),0 0 60px 20px rgba(255,90,30,.18);animation:flEmber 1.6s ease-in-out infinite;will-change:transform,opacity}' +
-    '.fl-wait span{font-family:"Cormorant Garamond",Georgia,serif;font-style:italic;font-size:19px;color:rgba(239,228,210,.6)}' +
-    '@keyframes flEmber{0%,100%{transform:scale(.8);opacity:.55}50%{transform:scale(1.15);opacity:1}}' +
-    '@media (prefers-reduced-motion: reduce){.fl-wait i{animation:none}}';
+    /* печать архива, пока он собирается за темнотой (см. «замочная скважина» ниже) */
+    '.fl-wait{position:fixed;inset:0;z-index:6;pointer-events:none;opacity:0;transition:opacity .6s}.fl-wait.on{opacity:1}' +
+    '.fl-sig{position:absolute;transform-origin:50% 53.5%;will-change:transform,opacity}' +
+    '.fl-l{position:absolute;inset:0;transform-origin:50% 53.5%;opacity:0;transform:scale(.86) rotate(-8deg);transition:opacity .8s,transform 1.3s cubic-bezier(.2,.7,.2,1)}' +
+    '.fl-wait.on .fl-l{opacity:1;transform:none}.fl-l:nth-child(2){transition-delay:.12s}.fl-l:nth-child(3){transition-delay:.24s}.fl-l:nth-child(4){transition-delay:.05s;transform:scale(.7)}' +
+    '.fl-rot{position:absolute;inset:0;transform-origin:50% 53.5%;will-change:transform}' +
+    '.fl-r1{animation:flRot 90s linear infinite}.fl-r2{animation:flRot 46s linear infinite reverse}.fl-r3{animation:flRot 30s linear infinite}' +
+    '.fl-sig svg{position:absolute;inset:0;width:100%;height:100%;overflow:visible;display:block}' +
+    '.fl-glow{position:absolute;left:12%;top:4%;width:76%;height:76%;border-radius:50%;background:radial-gradient(circle,rgba(255,170,90,.42) 0,rgba(255,110,40,.16) 38%,rgba(255,90,30,0) 68%);animation:flFlick 3.4s ease-in-out infinite;will-change:transform,opacity}' +
+    '.fl-emb i{position:absolute;left:var(--x);top:var(--y);width:var(--s);height:var(--s);border-radius:50%;background:#ffd09a;box-shadow:0 0 6px 2px rgba(255,140,60,.65);opacity:0;animation:flRise var(--d) linear var(--dl) infinite;will-change:transform,opacity}' +
+    '.fl-wait span{position:absolute;left:0;right:0;text-align:center;font-family:"Cormorant Garamond",Georgia,serif;font-style:italic;font-size:19px;letter-spacing:.04em;color:rgba(239,228,210,.7);transition:opacity .5s;animation:flBreath 3.2s ease-in-out infinite}' +
+    '.fl-rim{position:fixed;inset:0;width:100%;height:100%;z-index:2147483001;pointer-events:none;display:none}' +
+    '@keyframes flRot{to{transform:rotate(360deg)}}' +
+    '@keyframes flFlick{0%,100%{transform:scale(.94);opacity:.75}23%{transform:scale(1.03);opacity:1}41%{transform:scale(.97);opacity:.82}67%{transform:scale(1.06);opacity:.95}84%{transform:scale(.99);opacity:.86}}' +
+    '@keyframes flRise{0%{transform:translate(0,0) scale(1);opacity:0}12%{opacity:1}100%{transform:translate(var(--dx),var(--rise)) scale(.3);opacity:0}}' +
+    '@keyframes flBreath{0%,100%{color:rgba(239,228,210,.5)}50%{color:rgba(239,228,210,.85)}}' +
+    '@media (prefers-reduced-motion: reduce){.fl-rot,.fl-glow,.fl-wait span{animation:none}.fl-l{transition:opacity .3s}}';
   document.head.appendChild(css);
 
   function ease(t){ return t < .5 ? 4*t*t*t : 1 - Math.pow(-2*t + 2, 3)/2; }
@@ -2869,12 +2880,203 @@ document.documentElement.lang = 'ru';
     return text.slice(0, k) + js + text.slice(k);
   }
 
-  var wait_ = null;
+  /* замочная скважина: пока архив собирается, в темноте горит печать архива — латунные кольца с метками
+     и скважина, из которой льётся тёплый свет. Готовый архив проступает внутри скважины, а потом
+     скважина распахивается на весь экран, будто мы ныряем в неё. Обратно — тот же путь наоборот.
+     Кольца, свечение и искры — только transform/opacity на CSS: они не дёргаются, пока архив собирается. */
+  var KH = 'M50 23A17 17 0 0 1 59.2 54.3L65 84H35L40.8 54.3A17 17 0 0 1 50 23Z', AY = 53.5;
+  var KP = new Path2D(KH);
+  var MASK = 'url("data:image/svg+xml,' + encodeURIComponent("<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><path d='" + KH + "' fill='#fff'/></svg>") + '")';
+  // точки по краю скважины, откуда срываются искры
+  var RIM = (function(){
+    var p = [], i, a0 = Math.atan2(14.3, 9.2);
+    for (i = 0; i <= 40; i++){ var a = a0 - (2*Math.PI - 2*(Math.PI/2 - a0) - 0)*i/40; p.push([50 + 17*Math.cos(a), 40 + 17*Math.sin(a)]); }
+    for (i = 0; i <= 8; i++){ p.push([59.2 + 5.8*i/8, 54.3 + 29.7*i/8]); p.push([40.8 - 5.8*i/8, 54.3 + 29.7*i/8]); }
+    for (i = 0; i <= 8; i++) p.push([35 + 30*i/8, 84]);
+    return p;
+  })();
+  function geo(){
+    var W = innerWidth, H = innerHeight;
+    return {W: W, H: H, cx: W*0.5, cy: H*(W > 900 ? 0.43 : 0.45), S1: Math.min((W > 900 ? 0.44 : 0.56)*Math.min(W, H), 420), S2: 10*Math.max(W, H)};
+  }
+  function glyph(i){
+    return ['M0-1.6V1.6M-1.2-.4H1.2', 'M0 0m-1.1 0a1.1 1.1 0 1 0 2.2 0a1.1 1.1 0 1 0-2.2 0M0-.15v.3', 'M0-1.5L1.4 1.1H-1.4Z',
+      'M.6-1.5A1.6 1.6 0 1 0 .6 1.5A1.2 1.2 0 1 1 .6-1.5', 'M-1.2-1.2L1.2 1.2M1.2-1.2L-1.2 1.2', 'M0-1.6L1 0 0 1.6-1 0Z',
+      'M-1.4 1.2L0-1.4 1.4 1.2M-.8.2H.8', 'M-1.3 0H1.3M0-1.5V1.5M-.9-1.1L.9 1.1'][i % 8];
+  }
+  function sigilSvg(){
+    var G = '#c9a465', L = '#f1d79a', c = 'cx="50" cy="' + AY + '"', i, a, s;
+    var outer = '<circle ' + c + ' r="46.5" fill="none" stroke="' + G + '" stroke-opacity=".5" stroke-width=".3"/>' +
+      '<circle ' + c + ' r="44" fill="none" stroke="' + G + '" stroke-opacity=".35" stroke-width=".22"/>';
+    for (i = 0; i < 72; i++){
+      a = i*Math.PI/36; var lg = i % 6 === 0, r1 = 44, r2 = lg ? 46.5 : 45;
+      outer += '<line x1="' + (50 + r1*Math.cos(a)).toFixed(2) + '" y1="' + (AY + r1*Math.sin(a)).toFixed(2) + '" x2="' + (50 + r2*Math.cos(a)).toFixed(2) + '" y2="' + (AY + r2*Math.sin(a)).toFixed(2) +
+        '" stroke="' + G + '" stroke-opacity="' + (lg ? .8 : .4) + '" stroke-width="' + (lg ? .35 : .2) + '"/>';
+    }
+    for (i = 0; i < 12; i++){
+      a = (i + 0.5)*Math.PI/6;
+      outer += '<path transform="translate(' + (50 + 49.6*Math.cos(a)).toFixed(2) + ' ' + (AY + 49.6*Math.sin(a)).toFixed(2) + ') rotate(' + (a*180/Math.PI + 90).toFixed(1) + ')" d="' + glyph(i) +
+        '" fill="none" stroke="' + L + '" stroke-opacity=".75" stroke-width=".3" stroke-linecap="round" stroke-linejoin="round"/>';
+    }
+    var mid = '<circle ' + c + ' r="40.5" fill="none" stroke="' + G + '" stroke-opacity=".7" stroke-width=".55" stroke-dasharray=".5 1.7" stroke-linecap="round"/>';
+    for (i = 0; i < 8; i++){
+      a = i*Math.PI/4;
+      mid += '<circle cx="' + (50 + 40.5*Math.cos(a)).toFixed(2) + '" cy="' + (AY + 40.5*Math.sin(a)).toFixed(2) + '" r="' + (i % 2 ? .55 : .9) + '" fill="' + L + '"/>';
+    }
+    var inner = '<circle ' + c + ' r="35.6" fill="none" stroke="' + G + '" stroke-opacity=".45" stroke-width=".2"/>' +
+      '<circle ' + c + ' r="36.6" fill="none" stroke="' + G + '" stroke-opacity=".6" stroke-width=".3"/>';
+    for (i = 0; i < 3; i++){
+      a = i*Math.PI*2/3 - Math.PI/2; s = 'translate(' + (50 + 38.2*Math.cos(a)).toFixed(2) + ' ' + (AY + 38.2*Math.sin(a)).toFixed(2) + ') rotate(' + (a*180/Math.PI - 90).toFixed(1) + ')';
+      inner += '<path transform="' + s + '" d="M0 1.1L1 -.8H-1Z" fill="' + L + '" fill-opacity=".85"/>';
+    }
+    var key = '<defs><radialGradient id="flKg" gradientUnits="userSpaceOnUse" cx="50" cy="42" r="44">' +
+      '<stop offset="0" stop-color="#ffe6b0"/><stop offset=".14" stop-color="#f3a35a"/><stop offset=".38" stop-color="#9a3c16"/><stop offset=".7" stop-color="#3a1307"/><stop offset="1" stop-color="#140604"/></radialGradient></defs>' +
+      '<path d="' + KH + '" fill="url(#flKg)"/>' +
+      '<path d="' + KH + '" fill="none" stroke="' + L + '" stroke-width=".7"/>' +
+      '<path d="' + KH + '" fill="none" stroke="' + G + '" stroke-opacity=".5" stroke-width=".3" transform="translate(50 ' + AY + ') scale(1.09) translate(-50 -' + AY + ')"/>';
+    function svg(b){ return '<svg viewBox="0 0 100 100" aria-hidden="true">' + b + '</svg>'; }
+    var emb = '';
+    if (!RM) for (i = 0; i < 11; i++){
+      emb += '<i style="--x:' + (36 + Math.random()*28).toFixed(1) + '%;--y:' + (62 + Math.random()*22).toFixed(1) + '%;--s:' + (2 + Math.random()*2.5).toFixed(1) + 'px;--dx:' +
+        ((Math.random() - .5)*60).toFixed(0) + 'px;--d:' + (2.6 + Math.random()*2.2).toFixed(2) + 's;--dl:-' + (Math.random()*4).toFixed(2) + 's"></i>';
+    }
+    return '<div class="fl-l"><div class="fl-rot fl-r1">' + svg(outer) + '</div></div>' +
+      '<div class="fl-l"><div class="fl-rot fl-r2">' + svg(mid) + '</div></div>' +
+      '<div class="fl-l"><div class="fl-rot fl-r3">' + svg(inner) + '</div></div>' +
+      '<div class="fl-l"><div class="fl-glow"></div>' + svg(key) + '</div>' +
+      '<div class="fl-l fl-emb">' + emb + '</div>';
+  }
+
+  var wait_ = null, sig = null, note = null, rim = null, rg = null;
+  function layoutSig(){
+    var g = geo();
+    sig.style.left = (g.cx - g.S1*0.5) + 'px'; sig.style.top = (g.cy - g.S1*AY/100) + 'px';
+    sig.style.width = sig.style.height = g.S1 + 'px';
+    sig.style.setProperty('--rise', (-g.S1*0.62).toFixed(0) + 'px');
+    note.style.top = (g.cy + g.S1*0.55) + 'px';
+  }
   function showWait(on, text){
-    if (!wait_){ wait_ = document.createElement('div'); wait_.className = 'fl-wait'; wait_.innerHTML = '<i></i><span></span>'; (stage || document.body).appendChild(wait_); }
-    if (on) wait_.querySelector('span').textContent = text || 'Архив отпирается…';
+    if (!wait_){
+      wait_ = document.createElement('div'); wait_.className = 'fl-wait';
+      wait_.innerHTML = '<div class="fl-sig">' + sigilSvg() + '</div><span></span>';
+      (stage || document.body).appendChild(wait_);
+      sig = wait_.firstChild; note = wait_.lastChild;
+      addEventListener('resize', layoutSig);
+    }
+    layoutSig();
+    if (on){ note.textContent = text || 'Архив отпирается…'; note.style.opacity = ''; }
     wait_.classList.toggle('on', on);
   }
+  function sigAt(k, op){ sig.style.transform = k === 1 ? '' : 'scale(' + k + ')'; sig.style.opacity = op; }
+
+  function ensureRim(){
+    if (rim) return;
+    rim = document.createElement('canvas'); rim.className = 'fl-rim';
+    document.body.appendChild(rim); rg = rim.getContext('2d');
+  }
+  var flyers = [];
+  function drawRim(S, a, g, dt, spawn){
+    var d = Math.min(devicePixelRatio || 1, 1.5), W = Math.round(g.W*d), H = Math.round(g.H*d);
+    if (rim.width !== W || rim.height !== H){ rim.width = W; rim.height = H; }
+    var c = rg; c.setTransform(1, 0, 0, 1, 0, 0); c.clearRect(0, 0, W, H);
+    var k = S/100*d, ox = g.cx*d - 50*k, oy = g.cy*d - AY*k;
+    if (a > 0.003 && S > 1){
+      c.setTransform(k, 0, 0, k, ox, oy);
+      c.lineJoin = 'round';
+      c.shadowColor = 'rgba(255,140,60,' + a + ')'; c.shadowBlur = 34*d;
+      c.strokeStyle = 'rgba(255,170,90,' + (0.5*a) + ')'; c.lineWidth = 7*d/k; c.stroke(KP);
+      c.shadowBlur = 10*d; c.strokeStyle = 'rgba(241,215,154,' + a + ')'; c.lineWidth = 1.6*d/k; c.stroke(KP);
+      c.shadowBlur = 0;
+    }
+    // искры срываются с края скважины и разлетаются наружу
+    var n = spawn*dt*90;
+    while (n > 0 && S > 1){
+      if (n < 1 && Math.random() > n) break; n--;
+      var q = RIM[(Math.random()*RIM.length) | 0], x = ox + q[0]*k, y = oy + q[1]*k, dx = x - g.cx*d, dy = y - g.cy*d, l = Math.hypot(dx, dy) || 1;
+      var v = (60 + Math.random()*160)*d;
+      flyers.push({x: x, y: y, vx: dx/l*v, vy: dy/l*v - 40*d, t: 0, T: 0.5 + Math.random()*0.8, z: (0.6 + Math.random())*d});
+    }
+    c.setTransform(1, 0, 0, 1, 0, 0); c.globalCompositeOperation = 'lighter';
+    flyers = flyers.filter(function(f){
+      f.t += dt; if (f.t > f.T) return false;
+      f.x += f.vx*dt; f.y += f.vy*dt; f.vy -= 30*d*dt; f.vx *= 0.985;
+      var al = Math.sin(Math.PI*f.t/f.T)*0.9, r = 3.2*f.z;
+      var gr = c.createRadialGradient(f.x, f.y, 0, f.x, f.y, r*2.4);
+      gr.addColorStop(0, 'rgba(255,214,150,' + al + ')'); gr.addColorStop(0.35, 'rgba(255,140,60,' + al*0.6 + ')'); gr.addColorStop(1, 'rgba(255,90,30,0)');
+      c.fillStyle = gr; c.fillRect(f.x - r*2.4, f.y - r*2.4, r*4.8, r*4.8);
+      return true;
+    });
+    c.globalCompositeOperation = 'source-over';
+  }
+  function setMask(f, S, g){
+    var st = f.style;
+    if (S == null){
+      st.webkitMaskImage = st.maskImage = st.webkitMaskSize = st.maskSize = st.webkitMaskPosition = st.maskPosition = st.webkitMaskRepeat = st.maskRepeat = '';
+      return;
+    }
+    var v = Math.max(S, 0.01), p = (g.cx - v*0.5).toFixed(1) + 'px ' + (g.cy - v*AY/100).toFixed(1) + 'px';
+    st.webkitMaskImage = st.maskImage = MASK; st.webkitMaskRepeat = st.maskRepeat = 'no-repeat';
+    st.webkitMaskSize = st.maskSize = v.toFixed(1) + 'px ' + v.toFixed(1) + 'px';
+    st.webkitMaskPosition = st.maskPosition = p;
+  }
+  function sstep(t){ t = Math.max(0, Math.min(1, t)); return t*t*(3 - 2*t); }
+  /* u: 0 — архив виден только в скважине размером с печать (и то прозрачным), 1 — скважина больше экрана.
+     Первая треть — архив проявляется внутри скважины, дальше скважина растёт по экспоненте (ныряем). */
+  var A = 0.3;
+  function keyAt(f, u, g, dt, spawn){
+    var S, b = (u - A)/(1 - A);
+    if (u <= A){ S = g.S1; f.style.opacity = sstep(u/A).toFixed(3); }
+    else { f.style.opacity = '1'; S = g.S1*Math.pow(g.S2/g.S1, Math.pow(sstep(b), 1.25)); }
+    setMask(f, S, g);
+    var k = S/g.S1;
+    sigAt(k, (1 - sstep(b/0.45)).toFixed(3));
+    var a = u <= A ? sstep(u/A) : 1 - sstep(b/0.55);
+    drawRim(S, a, g, dt, spawn);
+  }
+  function keyTween(f, from, to, ms, spawnAt, done){
+    var g = geo(), last = performance.now();
+    rim.style.display = 'block'; flyers = [];
+    return tween(ms, function(u){
+      var now = performance.now(), dt = Math.min(0.05, (now - last)/1000); last = now;
+      var x = from + (to - from)*u;
+      keyAt(f, x, g, dt, spawnAt(x));
+    }).then(function(){
+      if (done) done();
+      // догораем искры, потом прячем холст
+      return tween(700, function(){ drawRim(0, 0, g, 1/60, 0); });
+    }).then(function(){ rim.style.display = 'none'; });
+  }
+  function openKey(f){
+    ensureRim();
+    note.style.opacity = '0';
+    f.style.transition = 'none'; f.style.opacity = '0'; f.classList.add('in');
+    setMask(f, 0.01, geo());
+    // маску снимаем, как только скважина больше экрана, не дожидаясь искр
+    var cleared;
+    var run = keyTween(f, 0, 1, 1900, function(x){ return x > A - 0.05 && x < A + 0.35 ? 1 : 0; }, function(){
+      setMask(f, null); f.style.transition = ''; f.style.opacity = '';
+      wait_.classList.remove('on');
+      setTimeout(function(){ if (!wait_.classList.contains('on')) sigAt(1, ''); }, 700);
+      cleared();
+    });
+    return new Promise(function(r){ cleared = r; });
+  }
+  if (/[?&]debug/.test(location.search)) window.__flKey = {
+    show: function(on, t){ showWait(on, t); },
+    at: function(u, spawn){ ensureRim(); rim.style.display = 'block'; var f = document.querySelector('.fl-archive'); f.style.transition = 'none'; keyAt(f, u, geo(), 1/30, spawn || 0); }
+  };
+  function closeKey(f){
+    ensureRim();
+    showWait(true, 'Полка просыпается…');
+    note.style.opacity = '0';
+    var g = geo();
+    f.style.transition = 'none'; f.style.opacity = '1';
+    keyAt(f, 1, g, 0, 0);
+    return keyTween(f, 1, 0, 1700, function(x){ return x > A && x < A + 0.3 ? 0.7 : 0; }).then(function(){
+      note.style.opacity = '';
+    });
+  }
+
   function frames(n){ return new Promise(function(r){ (function f(k){ if (k <= 0) r(); else requestAnimationFrame(function(){ f(k - 1); }); })(n); }); }
   // готов, когда архив собрал сцену (body.ready) и отрисовал пару кадров
   function archiveReady(f){
@@ -2914,9 +3116,10 @@ document.documentElement.lang = 'ru';
       });
     }).then(function(){
       // 3) архив проступает из той же темноты (переход на CSS, его не сбивает работа скриптов)
+      if (!RM) return openKey(frame);
       showWait(false);
       frame.classList.add('in');
-      return wait(RM ? 0 : 620);
+      return wait(0);
     }).then(function(){
       frame.style.pointerEvents = 'auto';
       document.documentElement.style.overflow = 'hidden';
@@ -2975,15 +3178,13 @@ document.documentElement.lang = 'ru';
     document.body.classList.add('fl-trans');
     document.documentElement.style.overflow = '';
     f.style.pointerEvents = 'none';
-    wait(RM ? 0 : 300).then(function(){
-      f.classList.add('out'); f.classList.remove('in');
-      return wait(RM ? 0 : 520);
-    }).then(function(){
+    (RM ? wait(0).then(function(){ f.classList.add('out'); f.classList.remove('in'); }) : closeKey(f)).then(function(){
       // архив прячем (браузер перестаёт его рисовать), полку будим, и только потом раскрываем темноту
       f.style.display = 'none';
       window.__flPause = false;
       return frames(3);
     }).then(function(){
+      showWait(false);
       return runVeil(1, 0, RM ? 250 : 1300);
     }).then(function(){
       document.body.classList.remove('fl-trans');
