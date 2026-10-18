@@ -2897,7 +2897,7 @@ document.documentElement.lang = 'ru';
   })();
   function geo(){
     var W = innerWidth, H = innerHeight;
-    return {W: W, H: H, cx: W*0.5, cy: H*(W > 900 ? 0.43 : 0.45), S1: Math.min((W > 900 ? 0.44 : 0.56)*Math.min(W, H), 420), S2: 10*Math.max(W, H)};
+    return {W: W, H: H, cx: W*0.5, cy: H*(W > 900 ? 0.43 : 0.45), S1: Math.min((W > 900 ? 0.3 : 0.4)*Math.min(W, H), 280), S2: 10*Math.max(W, H)};
   }
   function glyph(i){
     return ['M0-1.6V1.6M-1.2-.4H1.2', 'M0 0m-1.1 0a1.1 1.1 0 1 0 2.2 0a1.1 1.1 0 1 0-2.2 0M0-.15v.3', 'M0-1.5L1.4 1.1H-1.4Z',
